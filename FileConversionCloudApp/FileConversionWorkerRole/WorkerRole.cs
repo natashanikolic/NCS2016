@@ -117,6 +117,7 @@ namespace FileConversionWorkerRole
 
         public void ConvertImageToThumbnailJPG(Stream input, Stream output)
         {
+
             //TODO: to be implemented
             //int thumbnailsize = 80;
             //int width;
