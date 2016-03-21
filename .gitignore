@@ -236,6 +236,5 @@ _Pvt_Extensions
 .fake/
 
 #Settings
-FileConversionCloudApp/ServiceConfiguration.Local.cscfg
-FileConversionCloudApp/ServiceConfiguration.Cloud.cscfg
-FileConversionWebRole/Web.config
+*.cscfg
+*.config
