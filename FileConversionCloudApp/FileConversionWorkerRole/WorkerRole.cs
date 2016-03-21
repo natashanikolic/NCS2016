@@ -15,6 +15,7 @@ using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.Azure;
 using System.IO;
 
+
 namespace FileConversionWorkerRole
 {
     public class WorkerRole : RoleEntryPoint
@@ -66,55 +67,55 @@ namespace FileConversionWorkerRole
                     System.Threading.Thread.Sleep(5000);
                 }
             }          
-            
-            //////
-            //Trace.TraceInformation("FileConversionWorkerRole is running");
-
-            //try
-            //{
-            //    this.RunAsync(this.cancellationTokenSource.Token).Wait();
-            //}
-            //finally
-            //{
-            //    this.runCompleteEvent.Set();
-            //}
         }
 
         private void ProcessQueueMessage(CloudQueueMessage msg)
         {
-            Trace.TraceInformation("Processing queue message {0}", msg);
-
-            // Queue message contains AdId.
-            var fileId = int.Parse(msg.AsString);
-            FileConversionCommon.File f = db.Files.Find(fileId);
-            if (f == null)
+            try
             {
-                throw new Exception(String.Format("AdId {0} not found, can't create thumbnail", fileId.ToString()));
-            }
+                ConversionUtils cu = new ConversionUtils();
+                Trace.TraceInformation("Processing queue message {0}", msg);
 
-            Uri blobUri = new Uri(f.fileURL);
-            string blobName = blobUri.Segments[blobUri.Segments.Length - 1];
+                // Queue message contains AdId.
+                var fileId = int.Parse(msg.AsString);
+                FileConversionCommon.File f = db.Files.Find(fileId);
+                if (f == null)
+                {
+                    throw new Exception(String.Format("AdId {0} not found, can't create thumbnail", fileId.ToString()));
+                }
 
-            CloudBlockBlob inputBlob = this.filesBlobContainer.GetBlockBlobReference(blobName);
-            string thumbnailName = Path.GetFileNameWithoutExtension(inputBlob.Name) + "thumb.jpg";
-            CloudBlockBlob outputBlob = this.filesBlobContainer.GetBlockBlobReference(thumbnailName);
+                Uri blobUri = new Uri(f.fileURL);
+                string blobName = blobUri.Segments[blobUri.Segments.Length - 1];
 
-            using (Stream input = inputBlob.OpenRead())
-            using (Stream output = outputBlob.OpenWrite())
+                CloudBlockBlob inputBlob = this.filesBlobContainer.GetBlockBlobReference(blobName);
+                string convertedFileName = Path.GetFileNameWithoutExtension(inputBlob.Name) + "conv.jpg";
+                CloudBlockBlob outputBlob = this.filesBlobContainer.GetBlockBlobReference(convertedFileName);
+
+                using (Stream input = inputBlob.OpenRead())
+                using (Stream output = outputBlob.OpenWrite())
+                {
+                    cu.startJob();
+                    //ConvertImageToThumbnailJPG(input, output);
+                    outputBlob.Properties.ContentType = "image/jpeg";
+                }
+                Trace.TraceInformation("Generated thumbnail in blob {0}", convertedFileName);
+
+                f.convertedFilelURL = outputBlob.Uri.ToString();
+                db.SaveChanges();
+                Trace.TraceInformation("Updated thumbnail URL in database: {0}", f.convertedFilelURL);
+
+                // Remove message from queue.
+                this.filesQueue.DeleteMessage(msg);
+                }
+            catch (ArgumentException ex)
             {
-                ConvertImageToThumbnailJPG(input, output);
-                outputBlob.Properties.ContentType = "image/jpeg";
+                Console.WriteLine("I don't understand the path you supplied.");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.ToString());
             }
-            Trace.TraceInformation("Generated thumbnail in blob {0}", thumbnailName);
-
-            f.fileURL = outputBlob.Uri.ToString();
-            db.SaveChanges();
-            Trace.TraceInformation("Updated thumbnail URL in database: {0}", f.fileURL);
-
-            // Remove message from queue.
-            this.filesQueue.DeleteMessage(msg);
         }
 
+        
         public void ConvertImageToThumbnailJPG(Stream input, Stream output)
         {
 
