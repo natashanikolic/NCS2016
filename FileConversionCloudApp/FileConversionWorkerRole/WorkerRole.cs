@@ -75,89 +75,46 @@ namespace FileConversionWorkerRole
             {
                 ConversionUtils cu = new ConversionUtils();
                 Trace.TraceInformation("Processing queue message {0}", msg);
-
                 // Queue message contains AdId.
                 var fileId = int.Parse(msg.AsString);
                 FileConversionCommon.File f = db.Files.Find(fileId);
                 if (f == null)
                 {
-                    throw new Exception(String.Format("AdId {0} not found, can't create thumbnail", fileId.ToString()));
+                    throw new Exception(String.Format("FileId {0} not found, can't create png", fileId.ToString()));
                 }
 
                 Uri blobUri = new Uri(f.fileURL);
                 string blobName = blobUri.Segments[blobUri.Segments.Length - 1];
 
                 CloudBlockBlob inputBlob = this.filesBlobContainer.GetBlockBlobReference(blobName);
-                string convertedFileName = Path.GetFileNameWithoutExtension(inputBlob.Name) + "conv.jpg";
+                string convertedFileName = Path.GetFileNameWithoutExtension(inputBlob.Name) + ".png";
                 CloudBlockBlob outputBlob = this.filesBlobContainer.GetBlockBlobReference(convertedFileName);
 
                 using (Stream input = inputBlob.OpenRead())
                 using (Stream output = outputBlob.OpenWrite())
                 {
-                    cu.startJob();
-                    //ConvertImageToThumbnailJPG(input, output);
-                    outputBlob.Properties.ContentType = "image/jpeg";
+                    string jobId = cu.startJob(input, f.filename, "png");
+                    string jobFileId = cu.queryJob(jobId);
+                    outputBlob.Properties.ContentType = "image/png";
+                    cu.downloadJob(output, jobFileId);
                 }
-                Trace.TraceInformation("Generated thumbnail in blob {0}", convertedFileName);
+                Trace.TraceInformation("Generated png in blob {0}", convertedFileName);
 
+                //updating the converted file URL and name in the database
                 f.convertedFilelURL = outputBlob.Uri.ToString();
+                f.convertedFilename = Path.GetFileNameWithoutExtension(f.filename) + ".png";
                 db.SaveChanges();
-                Trace.TraceInformation("Updated thumbnail URL in database: {0}", f.convertedFilelURL);
+                Trace.TraceInformation("Updated png URL in database: {0}", f.convertedFilelURL);
 
                 // Remove message from queue.
                 this.filesQueue.DeleteMessage(msg);
-                }
+            }
             catch (ArgumentException ex)
             {
                 Console.WriteLine("I don't understand the path you supplied.");
                 Console.WriteLine(ex.Message);
                 Console.WriteLine(ex.ToString());
             }
-        }
-
-        
-        public void ConvertImageToThumbnailJPG(Stream input, Stream output)
-        {
-
-            //TODO: to be implemented
-            //int thumbnailsize = 80;
-            //int width;
-            //int height;
-            //var originalImage = new Bitmap(input);
-
-            //if (originalImage.Width > originalImage.Height)
-            //{
-            //    width = thumbnailsize;
-            //    height = thumbnailsize * originalImage.Height / originalImage.Width;
-            //}
-            //else
-            //{
-            //    height = thumbnailsize;
-            //    width = thumbnailsize * originalImage.Width / originalImage.Height;
-            //}
-
-            //Bitmap thumbnailImage = null;
-            //try
-            //{
-            //    thumbnailImage = new Bitmap(width, height);
-
-            //    using (Graphics graphics = Graphics.FromImage(thumbnailImage))
-            //    {
-            //        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            //        graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            //        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            //        graphics.DrawImage(originalImage, 0, 0, width, height);
-            //    }
-
-            //    thumbnailImage.Save(output, ImageFormat.Jpeg);
-            //}
-            //finally
-            //{
-            //    if (thumbnailImage != null)
-            //    {
-            //        thumbnailImage.Dispose();
-            //    }
-            //}
         }
 
         // A production app would also include an OnStop override to provide for

@@ -13,16 +13,28 @@ namespace FileConversionCommon
         public int fileId { get; set; }
 
         [StringLength(2083)]
-        [DisplayName("File Attachment")]
+        [DisplayName("Original File URL")]
         public string fileURL { get; set; }
+
+        [StringLength(2083)]
+        [DisplayName("Original File Name")]
+        public string filename { get; set; }
+
         [StringLength(2083)]
         [DisplayName("Converted File Link")]
         public string convertedFilelURL { get; set; }
+
+        [StringLength(2083)]
+        [DisplayName("Converted File Name")]
+        public string convertedFilename { get; set; }
+
+        [DisplayName("Conversion Date")]
         [DataType(DataType.Date)]
         [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
         public DateTime postedDate { get; set; }
 
         [EmailAddress]
+        [DisplayName("Email")]
         public string destinationEmail { get; set; }
     }
 }

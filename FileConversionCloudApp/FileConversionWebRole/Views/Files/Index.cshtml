@@ -9,10 +9,14 @@
 <p>
     @Html.ActionLink("Create New", "Create")
 </p>
+
 <table class="table">
     <tr>
         <th>
-            @Html.DisplayNameFor(model => model.fileURL)
+            @Html.DisplayNameFor(model => model.filename)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.convertedFilename)
         </th>
         <th>
             @Html.DisplayNameFor(model => model.convertedFilelURL)
@@ -26,26 +30,30 @@
         <th></th>
     </tr>
 
-@foreach (var item in Model) {
-    <tr>
-        <td>
-            <a>@Html.DisplayFor(modelItem => item.fileURL)</a>
-        </td>
-        <td>
-            @Html.DisplayFor(modelItem => item.convertedFilelURL)
-        </td>
-        <td>
-            @Html.DisplayFor(modelItem => item.postedDate)
-        </td>
-        <td>
-            @Html.DisplayFor(modelItem => item.destinationEmail)
-        </td>
-        <td>
-            @Html.ActionLink("Edit", "Edit", new { id=item.fileId }) |
-            @Html.ActionLink("Details", "Details", new { id=item.fileId }) |
-            @Html.ActionLink("Delete", "Delete", new { id=item.fileId })
-        </td>
-    </tr>
-}
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.filename)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.convertedFilename)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.convertedFilelURL)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.postedDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.destinationEmail)
+            </td>
+            <td>
+                @Html.ActionLink("Edit", "Edit", new { id = item.fileId }) |
+                @Html.ActionLink("Details", "Details", new { id = item.fileId }) |
+                @Html.ActionLink("Delete", "Delete", new { id = item.fileId })
+            </td>
+        </tr>
+    }
 
 </table>
