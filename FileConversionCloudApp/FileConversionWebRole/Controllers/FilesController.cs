@@ -24,6 +24,7 @@ namespace FileConversionWebRole.Controllers
         private CloudQueue filesQueue;
         private static CloudBlobContainer filesBlobContainer;
 
+
         public FilesController()
         {
             InitializeStorage();
@@ -51,9 +52,12 @@ namespace FileConversionWebRole.Controllers
             filesQueue = queueClient.GetQueueReference("files");
         }
 
+
+
         // GET: Files
         public async Task<ActionResult> Index()
         {
+
             return View(await db.Files.ToListAsync());
         }
 
@@ -88,14 +92,16 @@ namespace FileConversionWebRole.Controllers
             CloudBlockBlob imageBlob = null;
             // A production app would implement more robust input validation.
             // For example, validate that the image file size is not too large.
+            //TODO: Validate zamzar sizeof < 1mb 
             if (ModelState.IsValid)
             {
-                if (uploadFile != null && uploadFile.ContentLength != 0)
+                if (uploadFile != null && uploadFile.ContentLength != 0 && uploadFile.ContentLength < 1000000)
                 {
                     imageBlob = await UploadAndSaveBlobAsync(uploadFile);
                     file.fileURL = imageBlob.Uri.ToString();
                 }
                 file.postedDate = DateTime.Now;
+                file.filename = Path.GetFileName(uploadFile.FileName);
                 db.Files.Add(file);
                 await db.SaveChangesAsync();
                 Trace.TraceInformation("Created AdId {0} in database", file.fileId);
@@ -182,6 +188,7 @@ namespace FileConversionWebRole.Controllers
         {
             Trace.TraceInformation("Uploading image file {0}", uploadFile.FileName);
 
+            //genereates a unique id for the file that will be converted
             string blobName = Guid.NewGuid().ToString() + Path.GetExtension(uploadFile.FileName);
             // Retrieve reference to a blob. 
             CloudBlockBlob filetoBeConvertedBlob = filesBlobContainer.GetBlockBlobReference(blobName);
