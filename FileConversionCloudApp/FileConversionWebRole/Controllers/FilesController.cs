@@ -15,6 +15,7 @@ using Microsoft.WindowsAzure.ServiceRuntime;
 using Microsoft.WindowsAzure.Storage.RetryPolicies;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Mail;
 
 namespace FileConversionWebRole.Controllers
 {
@@ -105,6 +106,8 @@ namespace FileConversionWebRole.Controllers
                 db.Files.Add(file);
                 await db.SaveChangesAsync();
                 Trace.TraceInformation("Created AdId {0} in database", file.fileId);
+
+                Email(file.fileURL, file.postedDate, file.destinationEmail); //send email when conversion is ready. 
 
                 if (imageBlob != null)
                 {
@@ -201,6 +204,32 @@ namespace FileConversionWebRole.Controllers
             Trace.TraceInformation("Uploaded image file to {0}", filetoBeConvertedBlob.Uri.ToString());
 
             return filetoBeConvertedBlob;
+        }
+
+
+        private void Email(string convertedFile, DateTime date, string email) //need to add link here - NO - link comes up automatically... will this work for converted file? 
+        {
+            //Send E-mail with ticket
+            var userEmail = email;
+            var d = date;
+            var cf = convertedFile;
+
+            if (ModelState.IsValid)
+            {
+                var body = "<p><h3><u>Conversion Details</u></h3><p><b>Date of Conversion:</b> {0} <br><br><b>Converted File:</b> {1} <br><br>We hope you found our service useful!<br><br><b>ConvertIO</b>";
+                var message = new MailMessage();
+                //to add attachment to email: message.Attachments.Add(new Attachment(PathToAttachment));      http://stackoverflow.com/questions/5034503/adding-an-attachment-to-email-using-c-sharp
+                // https://msdn.microsoft.com/en-us/library/system.net.mail.mailmessage(v=vs.110).aspx
+                message.To.Add(new MailAddress(userEmail));
+                message.Subject = "ConvertIO Conversion Ready";
+                message.Body = string.Format(body, d, cf);
+                message.IsBodyHtml = true;
+
+                using (var smtp = new SmtpClient())
+                {
+                    smtp.Send(message);
+                }
+            }
         }
     }
 }
