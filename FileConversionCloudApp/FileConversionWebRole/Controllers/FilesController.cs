@@ -16,6 +16,11 @@ using Microsoft.WindowsAzure.Storage.RetryPolicies;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Mail;
+using Microsoft.AspNet.SignalR;
+using System.Collections.Concurrent;
+using System.Web.Script.Serialization;
+using System.Text;
+using System.Threading;
 
 namespace FileConversionWebRole.Controllers
 {
@@ -25,6 +30,8 @@ namespace FileConversionWebRole.Controllers
         private CloudQueue filesQueue;
         private static CloudBlobContainer filesBlobContainer;
 
+        private static BlockingCollection<string> _data = new BlockingCollection<string>();
+        private CloudQueueMessage queueMessage;
 
         public FilesController()
         {
@@ -58,7 +65,25 @@ namespace FileConversionWebRole.Controllers
         // GET: Files
         public async Task<ActionResult> Index()
         {
+            IHubContext hub = GlobalHost.ConnectionManager.GetHubContext<FileConversionWebRole.ProgressHub>();
+            int estimatedTime = 4000;
 
+            // Fetch the queue attributes.
+            filesQueue.FetchAttributes();
+
+            // Retrieve the cached approximate message count.
+            int? cachedMessageCount = filesQueue.ApproximateMessageCount;
+
+            // Calculate estimated time
+            if (cachedMessageCount != null)
+            {
+                estimatedTime = (int) cachedMessageCount * 4000;
+            }
+
+            hub.Clients.All.progress(25);
+
+            Trace.TraceInformation("Estiamted time = " + estimatedTime);
+   
             return View(await db.Files.ToListAsync());
         }
 
@@ -102,6 +127,11 @@ namespace FileConversionWebRole.Controllers
                     file.fileURL = imageBlob.Uri.ToString();
                 }
                 file.postedDate = DateTime.Now;
+
+                _data.Add("Your file is being saved to the database for conversion");
+                
+                
+
                 file.filename = Path.GetFileName(uploadFile.FileName);
                 db.Files.Add(file);
                 await db.SaveChangesAsync();
@@ -112,7 +142,15 @@ namespace FileConversionWebRole.Controllers
                 if (imageBlob != null)
                 {
                     var queueMessage = new CloudQueueMessage(file.fileId.ToString());
+                    _data.Add("Your file is being added to the queue");
                     await filesQueue.AddMessageAsync(queueMessage);
+                    _data.Add("Your file has been added to the queue for processing...");
+                    //Thread.Sleep(5000);
+                    // Fetch the queue attributes.
+                    filesQueue.FetchAttributes();
+                    // Retrieve the cached approximate message count.
+                    int? cachedMessageCount = filesQueue.ApproximateMessageCount;
+                    _data.Add("Approximate message count " + cachedMessageCount);
                     Trace.TraceInformation("Created queue message for AdId {0}", file.fileId);
                 }
                 return RedirectToAction("Index");
@@ -231,5 +269,25 @@ namespace FileConversionWebRole.Controllers
                 }
             }
         }
+
+        public void Message()
+        {
+            System.Web.HttpContext.Current.Response.ContentType = "text/event-stream";
+            System.Diagnostics.Debug.WriteLine("------- MESSAGE METHOD CALLED ---------------");
+            var result = string.Empty;
+            var sb = new StringBuilder();
+            //tries to remove an item from the BlockingCollection in the specified time period
+            if (_data.TryTake(out result, TimeSpan.FromMilliseconds(1000)))
+            {
+                JavaScriptSerializer ser = new JavaScriptSerializer();
+                var serializedObject = ser.Serialize(new { item = result, message = "" });
+                //sb.AppendFormat("data: {0}\n\n", serializedObject);
+                System.Web.HttpContext.Current.Response.Write(sb.AppendFormat("data: {0}\n\n", serializedObject));
+                System.Web.HttpContext.Current.Response.Flush();
+            }
+            //System.Diagnostics.Debug.WriteLine("====== " + sb.ToString() + " =======");
+            //return Content(sb.ToString(), "text/event-stream");
+        }
+
     }
 }

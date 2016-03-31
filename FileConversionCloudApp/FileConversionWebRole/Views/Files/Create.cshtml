@@ -4,6 +4,24 @@
     ViewBag.Title = "Create";
 }
 
+<script>
+
+    function contentLoaded() {
+        //listen on endpoint: files/create
+        var source = new EventSource('Message');
+        var ul = document.getElementById("messages");
+        source.onmessage = function (e) {
+            var li = document.createElement("li");
+            var returnedItem = JSON.parse(e.data)
+
+            li.textContent = returnedItem.message + ' ' + returnedItem.item;
+            ul.appendChild(li);
+            //ul.replaceChild(li);
+        }
+    }
+    window.addEventListener("DOMContentLoaded", contentLoaded, false);
+</script>
+
 <h2>Create</h2>
 
 
@@ -41,6 +59,7 @@
 
 <div>
     @Html.ActionLink("Back to List", "Index")
+    <ul id="messages"></ul>
 </div>
 
 @section Scripts {

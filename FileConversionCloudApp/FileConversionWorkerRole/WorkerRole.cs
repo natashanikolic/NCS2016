@@ -14,7 +14,7 @@ using Microsoft.WindowsAzure.Storage.Queue;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.Azure;
 using System.IO;
-
+using Microsoft.AspNet.SignalR;
 
 namespace FileConversionWorkerRole
 {
@@ -33,6 +33,7 @@ namespace FileConversionWorkerRole
             Trace.TraceInformation("FileConversionWorker entry point called");
             CloudQueueMessage msg = null;
 
+            IHubContext hub = GlobalHost.ConnectionManager.GetHubContext<FileConversionWebRole.ProgressHub>();
             // To make the worker role more scalable, implement multi-threaded and 
             // asynchronous code. See:
             // http://msdn.microsoft.com/en-us/library/ck8bc5c6.aspx
@@ -49,6 +50,7 @@ namespace FileConversionWorkerRole
                     msg = this.filesQueue.GetMessage();
                     if (msg != null)
                     {
+                        hub.Clients.All.progress(50);
                         ProcessQueueMessage(msg);
                     }
                     else
@@ -93,10 +95,11 @@ namespace FileConversionWorkerRole
                 using (Stream input = inputBlob.OpenRead())
                 using (Stream output = outputBlob.OpenWrite())
                 {
-                    string jobId = cu.startJob(input, f.filename, "png");
-                    string jobFileId = cu.queryJob(jobId);
+                    Thread.Sleep(20000);
+                    //string jobId = cu.startJob(input, f.filename, "png");
+                    //string jobFileId = cu.queryJob(jobId);
                     outputBlob.Properties.ContentType = "image/png";
-                    cu.downloadJob(output, jobFileId);
+                    //cu.downloadJob(output, jobFileId);
                 }
                 Trace.TraceInformation("Generated png in blob {0}", convertedFileName);
 
