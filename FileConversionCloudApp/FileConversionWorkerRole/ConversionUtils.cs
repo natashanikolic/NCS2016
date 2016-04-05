@@ -16,7 +16,7 @@ namespace FileConversionWorkerRole
     class ConversionUtils
     {
         const string apiKey = "";
-        //01650bfde2f6f4c950f802526652ce19842f1f27
+        //
         const string endpoint = "https://sandbox.zamzar.com/v1/jobs";
 
 
