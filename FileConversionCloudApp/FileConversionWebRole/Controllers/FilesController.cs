@@ -77,7 +77,8 @@ namespace FileConversionWebRole.Controllers
             // Calculate estimated time
             if (cachedMessageCount != null)
             {
-                estimatedTime = (int) cachedMessageCount * 4000;
+                estimatedTime = (int) cachedMessageCount * 4000;   
+
             }
 
             hub.Clients.All.progress(25);
@@ -288,6 +289,21 @@ namespace FileConversionWebRole.Controllers
             //System.Diagnostics.Debug.WriteLine("====== " + sb.ToString() + " =======");
             //return Content(sb.ToString(), "text/event-stream");
         }
+
+        public void Download(int id)
+        {
+            FileConversionCommon.File file = db.Files.Find(id);
+            string filename = file.convertedFilelURL;
+            string convertedFileName = file.convertedFilename;
+            //TO DISUCSS: we can opt to save the GUID in model to eliminate the remove
+            string file1 = filename.Remove(0, 46);
+
+            CloudBlockBlob blockBlob = filesBlobContainer.GetBlockBlobReference(file1);
+
+            Response.AddHeader("Content-Disposition", "attachment; filename=" + convertedFileName);
+            blockBlob.DownloadToStream(Response.OutputStream);
+        }
+
 
     }
 }
