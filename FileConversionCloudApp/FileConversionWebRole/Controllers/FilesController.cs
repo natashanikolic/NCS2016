@@ -65,7 +65,7 @@ namespace FileConversionWebRole.Controllers
 
         // GET: Files
         public async Task<ActionResult> Index()
-        {           
+        {
             return View(await db.Files.ToListAsync());
         }
 
@@ -94,7 +94,7 @@ namespace FileConversionWebRole.Controllers
             {
                 incrementProgress = 100;
             }
-            
+
             
 
             var job = JobManager.Instance.DoJobAsync(j =>
@@ -110,7 +110,7 @@ namespace FileConversionWebRole.Controllers
                     j.ReportProgress(progress);      
                 }
             });
-
+   
             return Json(new
             {
                 JobId = job.Id,
@@ -161,7 +161,7 @@ namespace FileConversionWebRole.Controllers
                 file.postedDate = DateTime.Now;
 
                 _data.Add("Your file is being saved to the database for conversion");
-
+                
                 file.filename = Path.GetFileName(uploadFile.FileName);
                 db.Files.Add(file);
                 await db.SaveChangesAsync();
@@ -314,6 +314,21 @@ namespace FileConversionWebRole.Controllers
             //System.Diagnostics.Debug.WriteLine("====== " + sb.ToString() + " =======");
             //return Content(sb.ToString(), "text/event-stream");
         }
+
+        public void Download(int id)
+        {
+            FileConversionCommon.File file = db.Files.Find(id);
+            string filename = file.convertedFilelURL;
+            string convertedFileName = file.convertedFilename;
+            //TO DISUCSS: we can opt to save the GUID in model to eliminate the remove
+            string file1 = filename.Remove(0, 46);
+
+            CloudBlockBlob blockBlob = filesBlobContainer.GetBlockBlobReference(file1);
+
+            Response.AddHeader("Content-Disposition", "attachment; filename=" + convertedFileName);
+            blockBlob.DownloadToStream(Response.OutputStream);
+        }
+
 
     }
 }
