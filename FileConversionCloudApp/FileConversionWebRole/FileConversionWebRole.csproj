@@ -176,6 +176,8 @@
     </Compile>
     <Compile Include="ProgressHub.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\Job.cs" />
+    <Compile Include="Services\JobManager.cs" />
     <Compile Include="Startup.cs" />
     <Compile Include="WebRole.cs" />
   </ItemGroup>

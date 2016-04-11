@@ -21,6 +21,8 @@ using System.Collections.Concurrent;
 using System.Web.Script.Serialization;
 using System.Text;
 using System.Threading;
+using FileConversionWebRole;
+using FileConversionWebRole.Services;  
 
 namespace FileConversionWebRole.Controllers
 {
@@ -61,12 +63,20 @@ namespace FileConversionWebRole.Controllers
         }
 
 
-
         // GET: Files
         public async Task<ActionResult> Index()
+        {           
+            return View(await db.Files.ToListAsync());
+        }
+
+        //Asynchrony is important here 
+        //With the job being taken care of, the method is free to return the job’s Id almost immediately 
+        //to the client, so the client can start tracking it.
+        [HttpPost]
+        public ActionResult DoJob()
         {
-            IHubContext hub = GlobalHost.ConnectionManager.GetHubContext<FileConversionWebRole.ProgressHub>();
-            int estimatedTime = 4000;
+            int incrementProgress = 0;
+            int estimatedTime = 0;
 
             // Fetch the queue attributes.
             filesQueue.FetchAttributes();
@@ -74,18 +84,40 @@ namespace FileConversionWebRole.Controllers
             // Retrieve the cached approximate message count.
             int? cachedMessageCount = filesQueue.ApproximateMessageCount;
 
-            // Calculate estimated time
+            // Calculate estimated time according to the number of jobs on the queue
             if (cachedMessageCount != null)
             {
-                estimatedTime = (int) cachedMessageCount * 4000;
+                estimatedTime = (int)cachedMessageCount * 4;
+                incrementProgress = 100 / estimatedTime; //used int on purpose to round number
             }
+            else
+            {
+                incrementProgress = 100;
+            }
+            
+            
 
-            hub.Clients.All.progress(25);
+            var job = JobManager.Instance.DoJobAsync(j =>
+            {
+                for (var progress = 0; progress <= 100; progress += incrementProgress)
+                {
+                    if (j.CancellationToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
 
-            Trace.TraceInformation("Estiamted time = " + estimatedTime);
-   
-            return View(await db.Files.ToListAsync());
+                    Thread.Sleep(1000); //every second increment by the progress calculated
+                    j.ReportProgress(progress);      
+                }
+            });
+
+            return Json(new
+            {
+                JobId = job.Id,
+                Progress = job.Progress
+            });
         }
+
 
         // GET: Files/Details/5
         public async Task<ActionResult> Details(int? id)
@@ -129,8 +161,6 @@ namespace FileConversionWebRole.Controllers
                 file.postedDate = DateTime.Now;
 
                 _data.Add("Your file is being saved to the database for conversion");
-                
-                
 
                 file.filename = Path.GetFileName(uploadFile.FileName);
                 db.Files.Add(file);
@@ -145,15 +175,11 @@ namespace FileConversionWebRole.Controllers
                     _data.Add("Your file is being added to the queue");
                     await filesQueue.AddMessageAsync(queueMessage);
                     _data.Add("Your file has been added to the queue for processing...");
-                    //Thread.Sleep(5000);
-                    // Fetch the queue attributes.
-                    filesQueue.FetchAttributes();
-                    // Retrieve the cached approximate message count.
-                    int? cachedMessageCount = filesQueue.ApproximateMessageCount;
-                    _data.Add("Approximate message count " + cachedMessageCount);
+
                     Trace.TraceInformation("Created queue message for AdId {0}", file.fileId);
                 }
-                return RedirectToAction("Index");
+
+                return RedirectToAction("Details", "Files", new { @id = file.fileId });
             }
 
             return View(file);

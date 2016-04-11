@@ -54,11 +54,13 @@
                 @Html.ActionLink("Delete", "Delete", new { id = item.fileId })
             </td>
         </tr>
+
+    
     }
 
 </table>
 
-<div id="actions">
+@*<div id="actions">
     <p>
         <span class="text-success">0% Complete</span>
         <div class="progress">
@@ -67,30 +69,78 @@
         </div>
     </p>
 </div>
+
+<div class="progress">
+    <div class="progress-bar" width="40%" role="progressbar"
+         aria-valuenow="0"
+         aria-valuemin="0"
+         aria-valuemax="100">
+        <span class="sr-only" id="workDone"></span>
+    </div>
+</div>*@
+
+<div>
+    <button id="startButton" class="btn btn-default">Start Job</button>
+</div>
+<div id="progressDisplay" style="display:none">
+    <div class="progress" id="progresssBar">
+        <div id="progresssBarValue" class="progress-bar" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+        </div>
+    </div>
+</div>
+<div id="completedDisplay" style="display:none">
+    <span class="glyphicon glyphicon-check"></span> Completed
+</div>
+
 @section Scripts {
     <script src="~/Scripts/jquery.signalR-2.2.0.js"></script>
     <script src="~/signalr/js"></script>
+    <script src="/signalr/hubs"></script>
     <script>
-        $(function () {
-            var hub = $.connection.progressHub,
-                $progressBar = $("#actions .progress-bar");
-            $.connection.hub.start().done(function () {
-                //hub.server.doLongRunningThing()
-                hub.server.doLongRunningThing()
-                    .progress(function (percent) {
-                        $progressBar.width(percent + "%");
-                        $("#actions .text-success").text(percent + "% Complete");
-                    })
-                    .done(function (result) {
-                        setTimeout(function () {
-                            $progressBar
-                                .removeClass("progress-bar-info")
-                                .addClass("progress-bar-success");
-                            $("#actions .text-success").text(result);
-                        }, 500);
-                    });
+        (function () {
+            $("#startButton").click(function () {
+                $('#startButton').prop('disabled', true);
+                $.ajax({
+                    url: '/files/dojob',
+                    method: 'POST',
+                    success: function (data) {
+                        trackJobProgress(data);
+                    }
+                });
+            });  
 
-            });
-        });
+            function trackJobProgress(job) {
+                setProgressBarWidth(job.Progress);
+                $("#completedDisplay").hide();
+                $('#progressDisplay').show();
+
+                //the hub gives notifications about job progress
+                var hubProxy = $.connection.progressHub;
+
+                //update the progress bar
+                hubProxy.client.progressChanged = function (jobId, progress) {
+                    setProgressBarWidth(progress);
+                };
+
+                //flips switches to hide the progress bar and show the completed message
+                hubProxy.client.jobCompleted = function (jobId) {
+                    $('#progressDisplay').hide();
+                    $("#completedDisplay").show();
+                    $("#startButton").prop('disabled', false);
+                    $.connection.hub.stop();
+                };
+
+                //set up the connection with the server
+                //It uses the hub proxy, this time to invoke a method on the server trackJob()
+                //the server makes sure that this client only receives notifications about that particular job
+                $.connection.hub.start().done(function () {
+                    hubProxy.server.trackJob(job.JobId);
+                });
+            }
+
+            function setProgressBarWidth(progress) {
+                $("#progresssBarValue").css("width", progress + "%");
+            }
+        })();
     </script>
 }

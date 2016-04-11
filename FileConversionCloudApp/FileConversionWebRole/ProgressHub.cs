@@ -4,20 +4,35 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
+using FileConversionWebRole.Services;
 
 namespace FileConversionWebRole
 {
     public class ProgressHub : Hub
     {
-        public async Task<string> DoLongRunningThing(IProgress<int> progress)
+        
+        public void TrackJob(string jobId)
         {
-            for (int i = 0; i <= 100; i += 5)
-            {
-                await Task.Delay(200);
+            Groups.Add(Context.ConnectionId, jobId);
+        }
 
-                progress.Report(i);
+        public void CancelJob(string jobId)
+        {
+            var job = JobManager.Instance.GetJob(jobId);
+            if (job != null)
+            {
+                job.Cancel();
             }
-            return "Job complete!";
+        }
+
+        public void ProgressChanged(string jobId, int progress)
+        {
+            Clients.Group(jobId).progressChanged(jobId, progress);
+        }
+
+        public void JobCompleted(string jobId)
+        {
+            Clients.Group(jobId).jobCompleted(jobId);
         }
     }
 }

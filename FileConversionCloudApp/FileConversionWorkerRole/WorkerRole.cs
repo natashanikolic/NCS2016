@@ -95,11 +95,11 @@ namespace FileConversionWorkerRole
                 using (Stream input = inputBlob.OpenRead())
                 using (Stream output = outputBlob.OpenWrite())
                 {
-                    Thread.Sleep(20000);
-                    //string jobId = cu.startJob(input, f.filename, "png");
-                    //string jobFileId = cu.queryJob(jobId);
+                    //Thread.Sleep(20000);
+                    string jobId = cu.startJob(input, f.filename, "png");
+                    string jobFileId = cu.queryJob(jobId);
                     outputBlob.Properties.ContentType = "image/png";
-                    //cu.downloadJob(output, jobFileId);
+                    cu.downloadJob(output, jobFileId);
                 }
                 Trace.TraceInformation("Generated png in blob {0}", convertedFileName);
 
