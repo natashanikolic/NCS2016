@@ -87,7 +87,7 @@ namespace FileConversionWebRole.Controllers
             // Calculate estimated time according to the number of jobs on the queue
             if (cachedMessageCount != null)
             {
-                estimatedTime = (int)cachedMessageCount * 4;
+                estimatedTime = (int)cachedMessageCount * 6;
                 incrementProgress = 100 / estimatedTime; //used int on purpose to round number
             }
             else
@@ -95,7 +95,6 @@ namespace FileConversionWebRole.Controllers
                 incrementProgress = 100;
             }
 
-            
 
             var job = JobManager.Instance.DoJobAsync(j =>
             {
@@ -107,6 +106,15 @@ namespace FileConversionWebRole.Controllers
                     }
 
                     Thread.Sleep(1000); //every second increment by the progress calculated
+
+                    //TO DO: check if converted file url is provided
+                    //FileConversionCommon.File file = db.Files.Find(id);
+                    //while (file.convertedFilelURL == null)
+                    //{
+                        //Thread.Sleep(1000);
+                        //file = db.Files.Find(id);
+                    //}
+
                     j.ReportProgress(progress);      
                 }
             });
@@ -321,12 +329,14 @@ namespace FileConversionWebRole.Controllers
             string filename = file.convertedFilelURL;
             string convertedFileName = file.convertedFilename;
             //TO DISUCSS: we can opt to save the GUID in model to eliminate the remove
-            string file1 = filename.Remove(0, 46);
+            //string file1 = filename.Remove(0, 46);
 
-            CloudBlockBlob blockBlob = filesBlobContainer.GetBlockBlobReference(file1);
+            CloudBlockBlob blockBlob = filesBlobContainer.GetBlockBlobReference(convertedFileName);
 
             Response.AddHeader("Content-Disposition", "attachment; filename=" + convertedFileName);
             blockBlob.DownloadToStream(Response.OutputStream);
+
+            
         }
 
 
