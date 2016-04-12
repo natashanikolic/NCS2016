@@ -10,6 +10,9 @@
     <h4>File</h4>
     <hr />
     <dl class="dl-horizontal">
+
+        @Html.HiddenFor(model => model.fileId)
+        
         <dt>
             @Html.DisplayNameFor(model => model.fileURL)
         </dt>
@@ -51,7 +54,16 @@
         </div>
     </div>
     <div id="completedDisplay" style="display:none">
-        <span class="glyphicon glyphicon-check"></span> Completed
+        <span class="glyphicon glyphicon-check"></span> 
+        
+        @*Download shows when queue processes msg else it will return an empty file*@
+        @*@if (item.convertedFilename != null)
+        {
+            @Html.ActionLink("Download", "Download", new { id = item.fileId })
+        }*@
+        
+        @Html.ActionLink("Download", "Download", new { id = Url.RequestContext.RouteData.Values["id"] })
+        
     </div>
 
 </div>
