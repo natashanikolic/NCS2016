@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Entity;
+using System.Data.Entity.Infrastructure;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,6 +20,7 @@ namespace FileConversionCommon
         public FileContext(string connString)
             : base(connString)
         {
+            ((IObjectContextAdapter)this).ObjectContext.CommandTimeout = 180;
         }
 
         public System.Data.Entity.DbSet<File> Files { get; set; }

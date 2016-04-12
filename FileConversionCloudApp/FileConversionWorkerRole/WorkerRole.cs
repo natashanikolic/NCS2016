@@ -89,23 +89,23 @@ namespace FileConversionWorkerRole
                 string blobName = blobUri.Segments[blobUri.Segments.Length - 1];
 
                 CloudBlockBlob inputBlob = this.filesBlobContainer.GetBlockBlobReference(blobName);
-                string convertedFileName = Path.GetFileNameWithoutExtension(inputBlob.Name) + ".png";
+                string convertedFileName = Path.GetFileNameWithoutExtension(inputBlob.Name) + ".pdf";
                 CloudBlockBlob outputBlob = this.filesBlobContainer.GetBlockBlobReference(convertedFileName);
 
                 using (Stream input = inputBlob.OpenRead())
                 using (Stream output = outputBlob.OpenWrite())
                 {
                     //Thread.Sleep(20000);
-                    string jobId = cu.startJob(input, f.filename, "png");
+                    string jobId = cu.startJob(input, f.filename, "pdf");
                     string jobFileId = cu.queryJob(jobId);
-                    outputBlob.Properties.ContentType = "image/png";
+                    outputBlob.Properties.ContentType = "application/pdf";
                     cu.downloadJob(output, jobFileId);
                 }
                 Trace.TraceInformation("Generated png in blob {0}", convertedFileName);
 
                 //updating the converted file URL and name in the database
                 f.convertedFilelURL = outputBlob.Uri.ToString();
-                f.convertedFilename = Path.GetFileNameWithoutExtension(f.filename) + ".png";
+                f.convertedFilename = Path.GetFileNameWithoutExtension(f.filename) + ".pdf";
                 db.SaveChanges();
                 Trace.TraceInformation("Updated png URL in database: {0}", f.convertedFilelURL);
 
