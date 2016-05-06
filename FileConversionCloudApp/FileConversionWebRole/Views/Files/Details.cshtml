@@ -9,23 +9,26 @@
 <div>
     <h4>File</h4>
     <hr />
+    <input id="fileID" type="hidden" name="NextStep" value=@Html.DisplayFor(model => model.fileId).ToString() />
     <dl class="dl-horizontal">
 
         @Html.HiddenFor(model => model.fileId)
-        
+       
+
         <dt>
             @Html.DisplayNameFor(model => model.fileURL)
         </dt>
 
         <dd>
             @Html.DisplayFor(model => model.fileURL)
+            <input id="fileUrl" type="hidden" name="NextStep" value= @Html.DisplayFor(model => model.fileURL).ToString() />
         </dd>
 
         <dt>
             @Html.DisplayNameFor(model => model.convertedFilelURL)
         </dt>
 
-        <dd>
+        <dd id="value">
             @Html.DisplayFor(model => model.convertedFilelURL)
         </dd>
 
@@ -49,17 +52,17 @@
 
     <div id="progressDisplay" style="display:none">
         <div class="progress" id="progresssBar">
-            <div id="progresssBarValue" class="progress-bar" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+            <div id="progresssBarValue" class="progress-bar" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100">
             </div>
         </div>
     </div>
     <div id="completedDisplay" style="display:none">
-        <span class="glyphicon glyphicon-check"></span> 
-        
+        <span class="glyphicon glyphicon-check"></span>
+
         @*Download shows when queue processes msg else it will return an empty file*@
-        @*@if (item.convertedFilename != null)
+        @*@if (Model.convertedFilename != null)
         {
-            @Html.ActionLink("Download", "Download", new { id = item.fileId })
+                @Html.ActionLink("Download", "Download", new { id = Model.fileId })
         }*@
         
         @Html.ActionLink("Download", "Download", new { id = Url.RequestContext.RouteData.Values["id"] })
@@ -68,7 +71,6 @@
 
 </div>
 <p>
-    @Html.ActionLink("Edit", "Edit", new { id = Model.fileId }) |
     @Html.ActionLink("Back to List", "Index")
 </p>
 
@@ -82,9 +84,14 @@
             $(window).load(function () {
                 $.ajax({
                     url: '/files/dojob',
-                    method: 'POST',
+                    type: 'POST',
+                    data: JSON.stringify({ fileId: $("#fileID").val() }),
+                    contentType: 'application/json; chartset=utf-8',
                     success: function (data) {
                         trackJobProgress(data);
+                    },
+                    error: function () {
+                        alert("error");
                     }
                 });
             });
@@ -106,9 +113,11 @@
                 hubProxy.client.jobCompleted = function (jobId) {
                     $('#progressDisplay').hide();
                     $("#completedDisplay").show();
+                    $("#value").html("need to get link");
                     $("#startButton").prop('disabled', false);
                     $.connection.hub.stop();
                 };
+
 
                 //set up the connection with the server
                 //It uses the hub proxy, this time to invoke a method on the server trackJob()

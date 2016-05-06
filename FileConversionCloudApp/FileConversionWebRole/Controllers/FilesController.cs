@@ -35,6 +35,9 @@ namespace FileConversionWebRole.Controllers
         private static BlockingCollection<string> _data = new BlockingCollection<string>();
         private CloudQueueMessage queueMessage;
 
+        public string fileUrl = "";
+        public string test = "";
+
         public FilesController()
         {
             InitializeStorage();
@@ -73,14 +76,14 @@ namespace FileConversionWebRole.Controllers
         //With the job being taken care of, the method is free to return the job’s Id almost immediately 
         //to the client, so the client can start tracking it.
         [HttpPost]
-        public ActionResult DoJob()
+        public ActionResult DoJob(string fileId)
         {
             int incrementProgress = 0;
             int estimatedTime = 0;
 
             // Fetch the queue attributes.
             filesQueue.FetchAttributes();
-
+            
             // Retrieve the cached approximate message count.
             int? cachedMessageCount = filesQueue.ApproximateMessageCount;
 
@@ -95,25 +98,20 @@ namespace FileConversionWebRole.Controllers
                 incrementProgress = 100;
             }
 
-
+            Boolean result = isFileConverted(fileId);
             var job = JobManager.Instance.DoJobAsync(j =>
             {
-                for (var progress = 0; progress <= 100; progress += incrementProgress)
+                for (var progress = 0; progress <= 100 || result == false ; progress += incrementProgress)
                 {
+                    
                     if (j.CancellationToken.IsCancellationRequested)
                     {
                         return;
-                    }
+                    }               
 
                     Thread.Sleep(1000); //every second increment by the progress calculated
-
-                    //TO DO: check if converted file url is provided
-                    //FileConversionCommon.File file = db.Files.Find(id);
-                    //while (file.convertedFilelURL == null)
-                    //{
-                        //Thread.Sleep(1000);
-                        //file = db.Files.Find(id);
-                    //}
+                    db = new FileContext();
+                    result = isFileConverted(fileId);
 
                     j.ReportProgress(progress);      
                 }
@@ -124,6 +122,20 @@ namespace FileConversionWebRole.Controllers
                 JobId = job.Id,
                 Progress = job.Progress
             });
+        }
+
+        private Boolean isFileConverted(string fileId)
+        {
+            int value = Int32.Parse(fileId);
+            FileConversionCommon.File file = db.Files.Find(value);
+            if (file.convertedFilelURL != null)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
 
@@ -157,72 +169,47 @@ namespace FileConversionWebRole.Controllers
         {
             CloudBlockBlob imageBlob = null;
             // A production app would implement more robust input validation.
-            // For example, validate that the image file size is not too large.
-            //TODO: Validate zamzar sizeof < 1mb 
+            // For example, validate that the image file size is not too large. 
             if (ModelState.IsValid)
             {
                 if (uploadFile != null && uploadFile.ContentLength != 0 && uploadFile.ContentLength < 1000000)
                 {
                     imageBlob = await UploadAndSaveBlobAsync(uploadFile);
                     file.fileURL = imageBlob.Uri.ToString();
+
+                    file.postedDate = DateTime.Now;
+
+                    _data.Add("Your file is being saved to the database for conversion");
+
+                    file.filename = Path.GetFileName(uploadFile.FileName);
+                    db.Files.Add(file);
+                    await db.SaveChangesAsync();
+                    Trace.TraceInformation("Created AdId {0} in database", file.fileId);
+
+                    Email(file.fileURL, file.postedDate, file.destinationEmail); //send email when conversion is ready. 
+
+                    if (imageBlob != null)
+                    {
+                        var queueMessage = new CloudQueueMessage(file.fileId.ToString());
+                        _data.Add("Your file is being added to the queue");
+                        await filesQueue.AddMessageAsync(queueMessage);
+                        _data.Add("Your file has been added to the queue for processing...");
+
+                        Trace.TraceInformation("Created queue message for AdId {0}", file.fileId);
+                    }
+
+                    return RedirectToAction("Details", "Files", new { @id = file.fileId });
                 }
-                file.postedDate = DateTime.Now;
-
-                _data.Add("Your file is being saved to the database for conversion");
-                
-                file.filename = Path.GetFileName(uploadFile.FileName);
-                db.Files.Add(file);
-                await db.SaveChangesAsync();
-                Trace.TraceInformation("Created AdId {0} in database", file.fileId);
-
-                Email(file.fileURL, file.postedDate, file.destinationEmail); //send email when conversion is ready. 
-
-                if (imageBlob != null)
+                else
                 {
-                    var queueMessage = new CloudQueueMessage(file.fileId.ToString());
-                    _data.Add("Your file is being added to the queue");
-                    await filesQueue.AddMessageAsync(queueMessage);
-                    _data.Add("Your file has been added to the queue for processing...");
-
-                    Trace.TraceInformation("Created queue message for AdId {0}", file.fileId);
+                    ModelState.AddModelError("", "File Size too big! It has to be 1mb or less");
                 }
-
-                return RedirectToAction("Details", "Files", new { @id = file.fileId });
+      
             }
 
             return View(file);
         }
 
-        // GET: Files/Edit/5
-        public async Task<ActionResult> Edit(int? id)
-        {
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            FileConversionCommon.File file = await db.Files.FindAsync(id);
-            if (file == null)
-            {
-                return HttpNotFound();
-            }
-            return View(file);
-        }
-
-        // POST: Files/Edit/5
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Edit([Bind(Include = "fileId,fileURL,convertedFilelURL,postedDate,destinationEmail")] FileConversionCommon.File file)
-        {
-            if (ModelState.IsValid)
-            {
-                db.Entry(file).State = EntityState.Modified;
-                await db.SaveChangesAsync();
-                return RedirectToAction("Index");
-            }
-            return View(file);
-        }
 
         // GET: Files/Delete/5
         public async Task<ActionResult> Delete(int? id)
@@ -250,14 +237,14 @@ namespace FileConversionWebRole.Controllers
             return RedirectToAction("Index");
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                db.Dispose();
-            }
-            base.Dispose(disposing);
-        }
+        //protected override void Dispose(bool disposing)
+        //{
+        //    if (disposing)
+        //    {
+        //        db.Dispose();
+        //    }
+        //    base.Dispose(disposing);
+        //}
 
         private async Task<CloudBlockBlob> UploadAndSaveBlobAsync(HttpPostedFileBase uploadFile)
         {
@@ -329,12 +316,16 @@ namespace FileConversionWebRole.Controllers
             string filename = file.convertedFilelURL;
             string convertedFileName = file.convertedFilename;
             //TO DISUCSS: we can opt to save the GUID in model to eliminate the remove
-            //string file1 = filename.Remove(0, 46);
+            string file1 = filename.Remove(0, 46);
 
-            CloudBlockBlob blockBlob = filesBlobContainer.GetBlockBlobReference(convertedFileName);
+            CloudBlockBlob blockBlob = filesBlobContainer.GetBlockBlobReference(file1);
 
+            Response.Clear();
+            Response.ContentType = "application/pdf";
             Response.AddHeader("Content-Disposition", "attachment; filename=" + convertedFileName);
+            //Response.TransmitFile(convertedFileName);
             blockBlob.DownloadToStream(Response.OutputStream);
+           
 
             
         }

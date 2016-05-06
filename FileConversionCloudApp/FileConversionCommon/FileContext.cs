@@ -20,7 +20,7 @@ namespace FileConversionCommon
         public FileContext(string connString)
             : base(connString)
         {
-            ((IObjectContextAdapter)this).ObjectContext.CommandTimeout = 180;
+            //((IObjectContextAdapter)this).ObjectContext.CommandTimeout = 180;
         }
 
         public System.Data.Entity.DbSet<File> Files { get; set; }
