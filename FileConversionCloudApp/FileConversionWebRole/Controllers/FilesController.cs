@@ -116,6 +116,7 @@ namespace FileConversionWebRole.Controllers
                     j.ReportProgress(progress);      
                 }
             });
+
    
             return Json(new
             {
@@ -129,7 +130,7 @@ namespace FileConversionWebRole.Controllers
             int value = Int32.Parse(fileId);
             FileConversionCommon.File file = db.Files.Find(value);
             if (file.convertedFilelURL != null)
-            {
+            {                
                 return true;
             }
             else
@@ -138,7 +139,7 @@ namespace FileConversionWebRole.Controllers
             }
         }
 
-
+        
         // GET: Files/Details/5
         public async Task<ActionResult> Details(int? id)
         {
@@ -184,9 +185,7 @@ namespace FileConversionWebRole.Controllers
                     file.filename = Path.GetFileName(uploadFile.FileName);
                     db.Files.Add(file);
                     await db.SaveChangesAsync();
-                    Trace.TraceInformation("Created AdId {0} in database", file.fileId);
-
-                    Email(file.fileURL, file.postedDate, file.destinationEmail); //send email when conversion is ready. 
+                    Trace.TraceInformation("Created AdId {0} in database", file.fileId);     
 
                     if (imageBlob != null)
                     {
@@ -197,6 +196,8 @@ namespace FileConversionWebRole.Controllers
 
                         Trace.TraceInformation("Created queue message for AdId {0}", file.fileId);
                     }
+
+                    Email(file.fileURL, file.postedDate, file.destinationEmail); //send email when conversion is ready. 
 
                     return RedirectToAction("Details", "Files", new { @id = file.fileId });
                 }
@@ -325,8 +326,12 @@ namespace FileConversionWebRole.Controllers
             Response.AddHeader("Content-Disposition", "attachment; filename=" + convertedFileName);
             //Response.TransmitFile(convertedFileName);
             blockBlob.DownloadToStream(Response.OutputStream);
-           
 
+            //Response.Clear();
+            //Response.ContentType = "image/png";
+            //Response.AddHeader("Content-Disposition", "attachment; filename=" + convertedFileName);
+            ////Response.TransmitFile(convertedFileName);
+            //blockBlob.DownloadToStream(Response.OutputStream);
             
         }
 

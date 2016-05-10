@@ -10,13 +10,15 @@ using System.Net.Http.Headers;
 using System.Json;
 using Newtonsoft.Json.Linq;
 using System.Web;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace FileConversionWorkerRole
 {
     class ConversionUtils
     {
-        const string apiKey = "";
+        const string apiKey = "4470bd458bae4d377dae35234e7332f39795adc7";
         const string endpoint = "https://sandbox.zamzar.com/v1/jobs";
+        public static CloudBlockBlob outputBlobz;
 
         public string startJob(Stream streamInput, string filename, string targetFormat) //still returning /devstoreaccoutn
         {
@@ -33,13 +35,28 @@ namespace FileConversionWorkerRole
 
         public string queryJob(String jobId)
         {
+            Boolean statusSuccessful = false;
+            JObject jsonJob;
             string endpointJob = "https://sandbox.zamzar.com/v1/jobs/" + jobId;
-            JObject jsonJob = Query(apiKey, endpointJob).Result;
+
+            do
+            {
+                jsonJob = Query(apiKey, endpointJob).Result;
+                JToken token = JToken.Parse(jsonJob.ToString());
+                String status = token.SelectToken("status").ToString();
+
+                if (status == "successful")
+                {
+                    statusSuccessful = true;
+                }
+
+            } while (statusSuccessful == false);
+            
             Console.WriteLine(jsonJob);
 
             //get the target ID from json
-            JToken token = JToken.Parse(jsonJob.ToString());
-            JArray targetArray = (JArray)token.SelectToken("target_files");
+            JToken token2 = JToken.Parse(jsonJob.ToString());
+            JArray targetArray = (JArray)token2.SelectToken("target_files");
             string fileId = "";
 
             foreach (JToken t in targetArray)
@@ -50,12 +67,14 @@ namespace FileConversionWorkerRole
             return fileId;
         }
 
-        public void downloadJob(Stream outputStream, String fileId)
+        public void downloadJob(CloudBlockBlob outputBlob, String fileId)
         {
             string endpointContent = "https://sandbox.zamzar.com/v1/files/" + fileId + "/content";
 
+            outputBlobz = outputBlob;
+
             //downloads the converted file
-            Download(apiKey, endpointContent, outputStream).Wait();
+            Download(apiKey, endpointContent, outputBlob.Uri.ToString()).Wait();
         }
 
         static async Task<JObject> Upload(string key, string url, Stream sourceFile, string filename, string targetFormat)
@@ -88,16 +107,35 @@ namespace FileConversionWorkerRole
             }
         }
 
-        static async Task<JsonValue> Download(string key, string url, Stream outputStream)
+        //static async Task<JObject> Download(string key, string url, Stream outputStream)
+        //{
+        //    using (HttpClientHandler handler = new HttpClientHandler { Credentials = new NetworkCredential(key, "") })
+        //    using (HttpClient client = new HttpClient(handler))
+        //    using (HttpResponseMessage response = await client.GetAsync(url))
+        //    using (HttpContent content = response.Content)
+        //    using (Stream stream = await content.ReadAsStreamAsync())
+        //    using (outputStream)
+        //    {
+        //        stream.CopyTo(outputStream);
+        //        JObject jv = JObject.Parse(stream.ToString());
+        //        return jv;
+        //    }
+
+        //    //return null; //added because otherwise it gives me an error
+        //}
+
+        static async Task<JObject> Download(string key, string url, string file)
         {
+           // Stream output = outputBlobz.OpenWrite();
+
             using (HttpClientHandler handler = new HttpClientHandler { Credentials = new NetworkCredential(key, "") })
             using (HttpClient client = new HttpClient(handler))
             using (HttpResponseMessage response = await client.GetAsync(url))
             using (HttpContent content = response.Content)
             using (Stream stream = await content.ReadAsStreamAsync())
-            using (outputStream)
+            using (Stream output = outputBlobz.OpenWrite())
             {
-                stream.CopyTo(outputStream);
+                stream.CopyTo(output);
             }
 
             return null; //added because otherwise it gives me an error

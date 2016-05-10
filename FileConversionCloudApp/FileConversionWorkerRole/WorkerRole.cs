@@ -90,22 +90,28 @@ namespace FileConversionWorkerRole
 
                 CloudBlockBlob inputBlob = this.filesBlobContainer.GetBlockBlobReference(blobName);
                 string convertedFileName = Path.GetFileNameWithoutExtension(inputBlob.Name) + ".pdf";
+                //string convertedFileName = Path.GetFileNameWithoutExtension(inputBlob.Name) + ".png";
                 CloudBlockBlob outputBlob = this.filesBlobContainer.GetBlockBlobReference(convertedFileName);
 
                 using (Stream input = inputBlob.OpenRead())
-                using (Stream output = outputBlob.OpenWrite())
+                //using (Stream output = outputBlob.OpenWrite())
                 {
                     //Thread.Sleep(20000);
                     string jobId = cu.startJob(input, f.filename, "pdf");
                     string jobFileId = cu.queryJob(jobId);
                     outputBlob.Properties.ContentType = "application/pdf";
-                    cu.downloadJob(output, jobFileId);
+                    cu.downloadJob(outputBlob, jobFileId);
+                    //string jobId = cu.startJob(input, f.filename, "png");
+                    //string jobFileId = cu.queryJob(jobId);
+                    //outputBlob.Properties.ContentType = "image/png";
+                    //cu.downloadJob(output, jobFileId);
                 }
                 Trace.TraceInformation("Generated png in blob {0}", convertedFileName);
 
                 //updating the converted file URL and name in the database
                 f.convertedFilelURL = outputBlob.Uri.ToString();
                 f.convertedFilename = Path.GetFileNameWithoutExtension(f.filename) + ".pdf";
+                //f.convertedFilename = Path.GetFileNameWithoutExtension(f.filename) + ".png";
                 db.SaveChanges();
                 Trace.TraceInformation("Updated png URL in database: {0}", f.convertedFilelURL);
 
