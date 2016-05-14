@@ -16,7 +16,7 @@ namespace FileConversionWorkerRole
 {
     class ConversionUtils
     {
-        const string apiKey = "4470bd458bae4d377dae35234e7332f39795adc7";
+        const string apiKey = "01650bfde2f6f4c950f802526652ce19842f1f27";
         const string endpoint = "https://sandbox.zamzar.com/v1/jobs";
         public static CloudBlockBlob outputBlobz;
 
