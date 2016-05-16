@@ -81,6 +81,7 @@ namespace FileConversionWebRole.Controllers
             int incrementProgress = 0;
             int estimatedTime = 0;
 
+
             // Fetch the queue attributes.
             filesQueue.FetchAttributes();
             
@@ -115,9 +116,14 @@ namespace FileConversionWebRole.Controllers
 
                     j.ReportProgress(progress);      
                 }
+                if (result == true)
+                {
+                    int fID = Int32.Parse(fileId);
+                    FileConversionCommon.File femail = db.Files.Find(fID);
+                    Email(femail.convertedFilelURL, femail.postedDate, femail.destinationEmail);
+                }
             });
 
-   
             return Json(new
             {
                 JobId = job.Id,
@@ -130,7 +136,7 @@ namespace FileConversionWebRole.Controllers
             int value = Int32.Parse(fileId);
             FileConversionCommon.File file = db.Files.Find(value);
             if (file.convertedFilelURL != null)
-            {                
+            {
                 return true;
             }
             else
@@ -148,6 +154,7 @@ namespace FileConversionWebRole.Controllers
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
             FileConversionCommon.File file = await db.Files.FindAsync(id);
+
             if (file == null)
             {
                 return HttpNotFound();
@@ -197,7 +204,6 @@ namespace FileConversionWebRole.Controllers
                         Trace.TraceInformation("Created queue message for AdId {0}", file.fileId);
                     }
 
-                    Email(file.fileURL, file.postedDate, file.destinationEmail); //send email when conversion is ready. 
 
                     return RedirectToAction("Details", "Files", new { @id = file.fileId });
                 }
@@ -267,12 +273,15 @@ namespace FileConversionWebRole.Controllers
         }
 
 
-        private void Email(string convertedFile, DateTime date, string email) //need to add link here - NO - link comes up automatically... will this work for converted file? 
+        private void Email(string convertedFile, DateTime date, string email) 
         {
-            //Send E-mail with ticket
             var userEmail = email;
             var d = date;
             var cf = convertedFile;
+            //int IDEmail = id;
+            //var downl = 0;
+
+            //downl = Download(IDEmail);
 
             if (ModelState.IsValid)
             {
@@ -280,6 +289,7 @@ namespace FileConversionWebRole.Controllers
                 var message = new MailMessage();
                 //to add attachment to email: message.Attachments.Add(new Attachment(PathToAttachment));      http://stackoverflow.com/questions/5034503/adding-an-attachment-to-email-using-c-sharp
                 // https://msdn.microsoft.com/en-us/library/system.net.mail.mailmessage(v=vs.110).aspx
+               // message.Attachments.Add(new Attachment(convertedFile));
                 message.To.Add(new MailAddress(userEmail));
                 message.Subject = "ConvertIO Conversion Ready";
                 message.Body = string.Format(body, d, cf);
